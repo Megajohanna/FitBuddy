@@ -1,29 +1,115 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Workout Planner</title>
+    <title>FitBuddy</title>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #f2f7f3;
+            text-align: center;
+            margin: 0;
+            padding: 30px;
+        }
+
+        .container {
+            max-width: 600px;
+            margin: auto;
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 4px 15px #ccc;
+        }
+
+        h1 {
+            color: #247a45;
+        }
+
+        input, select, button {
+            width: 90%;
+            padding: 12px;
+            margin: 8px;
+            border-radius: 8px;
+            border: 1px solid #ccc;
+        }
+
+        button {
+            background: #247a45;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+
+        .result {
+            margin-top: 25px;
+            padding: 20px;
+            background: #eef8f0;
+            border-radius: 10px;
+            text-align: left;
+        }
+    </style>
 </head>
+
 <body>
-    <h2>Workout Plan Generator</h2>
-    
-    {% if error %}
-        <p style="color: red;">{{ error }}</p>
+
+<div class="container">
+
+    <h1>💪 FitBuddy</h1>
+    <p>Your Personal Fitness Assistant</p>
+
+    <form method="POST">
+
+        <input type="text"
+               name="name"
+               placeholder="Enter your name"
+               required>
+
+        <input type="number"
+               name="age"
+               placeholder="Enter your age"
+               required>
+
+        <select name="goal" required>
+            <option value="">Select your goal</option>
+            <option value="Weight Loss">Weight Loss</option>
+            <option value="Muscle Gain">Muscle Gain</option>
+            <option value="General Fitness">General Fitness</option>
+        </select>
+
+        <select name="level" required>
+            <option value="">Select fitness level</option>
+            <option value="Beginner">Beginner</option>
+            <option value="Intermediate">Intermediate</option>
+            <option value="Advanced">Advanced</option>
+        </select>
+
+        <button type="submit">Generate My Plan</button>
+
+    </form>
+
+    {% if plan %}
+
+    <div class="result">
+
+        <h2>Hello {{ plan.name }}! 👋</h2>
+
+        <p><b>Age:</b> {{ plan.age }}</p>
+
+        <p><b>Goal:</b> {{ plan.goal }}</p>
+
+        <p><b>Fitness Level:</b> {{ plan.level }}</p>
+
+        <p><b>Recommended Activity:</b><br>
+        {{ plan.workout }}</p>
+
+        <p><b>Nutrition Guidance:</b><br>
+        {{ plan.food }}</p>
+
+    </div>
+
     {% endif %}
 
-    <form action="/generate" method="POST">
-        <label>Age:</label>
-        <input type="number" name="age" min="12" max="100" required><br><br>
+</div>
 
-        <label>Goal:</label>
-        <input type="text" name="goal" required><br><br>
-
-        <label>Level:</label>
-        <input type="text" name="level" required><br><br>
-
-        <label>Time (minutes):</label>
-        <input type="number" name="time" min="10" max="180" required><br><br>
-
-        <button type="submit">Generate Plan</button>
-    </form>
 </body>
 </html>
