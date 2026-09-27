@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Workout Planner</title>
+</head>
+<body>
+    <h2>Workout Plan Generator</h2>
+    
+    {% if error %}
+        <p style="color: red;">{{ error }}</p>
+    {% endif %}
+
+    <form action="/generate" method="POST">
+        <label>Age:</label>
+        <input type="number" name="age" min="12" max="100" required><br><br>
+
+        <label>Goal:</label>
+        <input type="text" name="goal" required><br><br>
+
+        <label>Level:</label>
+        <input type="text" name="level" required><br><br>
+
+        <label>Time (minutes):</label>
+        <input type="number" name="time" min="10" max="180" required><br><br>
+
+        <button type="submit">Generate Plan</button>
+    </form>
+</body>
+</html>

@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>Your Fitness Plan</title>
+</head>
+<body>
+    <h1>Your Personalized Fitness Plan</h1>
+    
+    {% if exercises %}
+        <p>{{ plan }}</p>
+        <ul>
+        {% for exercise in exercises %}
+            <li>{{ exercise }}</li>
+        {% endfor %}
+        </ul>
+    {% endif %}
+
+    {% if result %}
+        <pre>{{ result }}</pre>
+    {% endif %}
+
+    <a href="/">Create Another Plan</a>
+</body>
+</html>
