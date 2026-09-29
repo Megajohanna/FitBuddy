@@ -1,0 +1,1391 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FitBuddy | AI Fitness & Nutrition Coach</title>
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#ecfdf5',
+              100: '#d1fae5',
+              400: '#34d399',
+              500: '#10b981',
+              600: '#059669',
+              700: '#047857',
+            },
+            accent: {
+              cyan: '#06b6d4',
+              violet: '#8b5cf6',
+              amber: '#f59e0b',
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <!-- Chart.js CDN for Macro Visualizer -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
+    body {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+    }
+    .custom-scrollbar::-webkit-scrollbar {
+      width: 6px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-track {
+      background: #0f172a;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+      background: #334155;
+      border-radius: 9999px;
+    }
+    @media print {
+      body * {
+        visibility: hidden;
+      }
+      #printable-plan, #printable-plan * {
+        visibility: visible;
+      }
+      #printable-plan {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100%;
+        background: white !important;
+        color: black !important;
+      }
+    }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col antialiased selection:bg-emerald-500 selection:text-black">
+
+  <!-- Top Announcement Bar -->
+  <div class="bg-gradient-to-r from-emerald-600 via-teal-600 to-cyan-600 py-1 px-4 text-xs font-medium text-center text-white flex items-center justify-center gap-2">
+    <i data-lucide="sparkles" class="w-3.5 h-3.5"></i>
+    <span>Empowering your fitness journey with precision calculation & intelligent AI coaching</span>
+  </div>
+
+  <!-- Header Navigation -->
+  <header class="border-b border-slate-800/80 bg-slate-900/70 backdrop-blur-md sticky top-0 z-50">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+      
+      <!-- Brand Logo -->
+      <div class="flex items-center gap-3 cursor-pointer" onclick="switchTab('calculator')">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-emerald-500 to-cyan-400 flex items-center justify-center shadow-lg shadow-emerald-500/20">
+          <i data-lucide="dumbbell" class="w-5 h-5 text-slate-950 stroke-[2.5]"></i>
+        </div>
+        <div>
+          <span class="text-xl font-bold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-emerald-400 to-teal-200">
+            FitBuddy
+          </span>
+          <span class="text-xs ml-1 text-slate-400 font-mono tracking-wider">AI COACH</span>
+        </div>
+      </div>
+
+      <!-- Navigation Tabs -->
+      <nav class="hidden md:flex items-center gap-1 bg-slate-800/50 p-1 rounded-xl border border-slate-800">
+        <button onclick="switchTab('calculator')" id="tab-btn-calculator" class="nav-tab-btn flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-sm font-medium transition-all text-white bg-slate-700/80 shadow-sm">
+          <i data-lucide="calculator" class="w-4 h-4 text-emerald-400"></i>
+          <span>Metrics & Macros</span>
+        </button>
+        <button onclick="switchTab('planner')" id="tab-btn-planner" class="nav-tab-btn flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-sm font-medium transition-all text-slate-400 hover:text-slate-200 hover:bg-slate-800/60">
+          <i data-lucide="calendar" class="w-4 h-4 text-cyan-400"></i>
+          <span>AI Plan Generator</span>
+        </button>
+        <button onclick="switchTab('coach')" id="tab-btn-coach" class="nav-tab-btn flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-sm font-medium transition-all text-slate-400 hover:text-slate-200 hover:bg-slate-800/60">
+          <i data-lucide="bot" class="w-4 h-4 text-violet-400"></i>
+          <span>FitBuddy Chat</span>
+        </button>
+        <button onclick="switchTab('tracker')" id="tab-btn-tracker" class="nav-tab-btn flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-sm font-medium transition-all text-slate-400 hover:text-slate-200 hover:bg-slate-800/60">
+          <i data-lucide="check-circle" class="w-4 h-4 text-amber-400"></i>
+          <span>Daily Habits</span>
+        </button>
+      </nav>
+
+      <!-- Engine Status Badge -->
+      <div class="flex items-center gap-2.5">
+        {% if has_gemini %}
+        <div class="flex items-center gap-2 px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-medium">
+          <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+          <span>Gemini 3.8 Flash Active</span>
+        </div>
+        {% else %}
+        <div class="flex items-center gap-2 px-2.5 py-1 rounded-full bg-slate-800 border border-slate-700 text-slate-300 text-xs font-medium" title="Add GEMINI_API_KEY in .env to enable Gemini Live AI">
+          <span class="w-2 h-2 rounded-full bg-amber-400"></span>
+          <span>FitBuddy Smart Engine</span>
+        </div>
+        {% endif %}
+      </div>
+
+    </div>
+
+    <!-- Mobile Navigation Bar -->
+    <div class="md:hidden flex border-t border-slate-800 px-2 py-2 gap-1 overflow-x-auto custom-scrollbar">
+      <button onclick="switchTab('calculator')" id="mob-tab-btn-calculator" class="flex-1 py-1 px-2 text-xs font-medium rounded-lg text-white bg-slate-800 flex items-center justify-center gap-1.5 whitespace-nowrap">
+        <i data-lucide="calculator" class="w-3.5 h-3.5 text-emerald-400"></i> Metrics
+      </button>
+      <button onclick="switchTab('planner')" id="mob-tab-btn-planner" class="flex-1 py-1 px-2 text-xs font-medium rounded-lg text-slate-400 hover:bg-slate-800/50 flex items-center justify-center gap-1.5 whitespace-nowrap">
+        <i data-lucide="calendar" class="w-3.5 h-3.5 text-cyan-400"></i> AI Plans
+      </button>
+      <button onclick="switchTab('coach')" id="mob-tab-btn-coach" class="flex-1 py-1 px-2 text-xs font-medium rounded-lg text-slate-400 hover:bg-slate-800/50 flex items-center justify-center gap-1.5 whitespace-nowrap">
+        <i data-lucide="bot" class="w-3.5 h-3.5 text-violet-400"></i> AI Chat
+      </button>
+      <button onclick="switchTab('tracker')" id="mob-tab-btn-tracker" class="flex-1 py-1 px-2 text-xs font-medium rounded-lg text-slate-400 hover:bg-slate-800/50 flex items-center justify-center gap-1.5 whitespace-nowrap">
+        <i data-lucide="check-circle" class="w-3.5 h-3.5 text-amber-400"></i> Habits
+      </button>
+    </div>
+  </header>
+
+  <!-- Main Content Container -->
+  <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
+
+    <!-- ======================================================== -->
+    <!-- TAB 1: BODY METRICS & MACRO CALCULATOR                   -->
+    <!-- ======================================================== -->
+    <section id="section-calculator" class="space-y-8">
+      
+      <!-- Section Intro Banner -->
+      <div class="relative overflow-hidden rounded-2xl bg-gradient-to-br from-slate-900 via-slate-900 to-slate-800/90 p-6 md:p-8 border border-slate-800">
+        <div class="absolute -right-8 -bottom-8 w-64 h-64 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none"></div>
+        <div class="max-w-2xl">
+          <span class="px-3 py-1 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 uppercase tracking-wider">
+            Evidence-Based Metabolism Engine
+          </span>
+          <h1 class="text-2xl md:text-3xl font-extrabold text-white mt-3 tracking-tight">
+            Calculate Your BMI, TDEE & Target Macros
+          </h1>
+          <p class="text-slate-400 text-sm md:text-base mt-2">
+            Using the clinical Mifflin-St Jeor formula, calculate your baseline metabolism, goal-adjusted calorie target, and optimal macro breakdown for maximum fat loss or muscle hypertrophy.
+          </p>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+        
+        <!-- Input Form (5 cols) -->
+        <div class="lg:col-span-5 bg-slate-900/90 rounded-2xl p-6 border border-slate-800 shadow-xl">
+          <div class="flex items-center justify-between pb-4 border-b border-slate-800">
+            <h2 class="font-bold text-lg text-white flex items-center gap-2">
+              <i data-lucide="sliders" class="w-5 h-5 text-emerald-400"></i>
+              <span>Your Profile & Goals</span>
+            </h2>
+            <!-- Unit Switcher -->
+            <div class="flex items-center bg-slate-800 p-1 rounded-lg border border-slate-700 text-xs">
+              <button type="button" id="unit-metric" onclick="setUnits('metric')" class="px-2.5 py-1 rounded font-semibold transition bg-emerald-500 text-slate-950">Metric</button>
+              <button type="button" id="unit-imperial" onclick="setUnits('imperial')" class="px-2.5 py-1 rounded font-semibold transition text-slate-400 hover:text-white">Imperial</button>
+            </div>
+          </div>
+
+          <form id="calc-form" onsubmit="handleCalculate(event)" class="mt-5 space-y-4">
+            
+            <!-- Age & Gender -->
+            <div class="grid grid-cols-2 gap-4">
+              <div>
+                <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1.5">Age</label>
+                <input type="number" id="calc-age" min="12" max="110" value="26" required
+                  class="w-full bg-slate-950 border border-slate-800 focus:border-emerald-500 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:ring-1 focus:ring-emerald-500">
+              </div>
+              <div>
+                <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1.5">Biological Sex</label>
+                <select id="calc-gender" class="w-full bg-slate-950 border border-slate-800 focus:border-emerald-500 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:ring-1 focus:ring-emerald-500">
+                  <option value="male">Male</option>
+                  <option value="female">Female</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- Height & Weight -->
+            <div class="grid grid-cols-2 gap-4">
+              <div>
+                <label id="label-height" class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1.5">Height (cm)</label>
+                <input type="number" id="calc-height" step="0.5" value="175" required
+                  class="w-full bg-slate-950 border border-slate-800 focus:border-emerald-500 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:ring-1 focus:ring-emerald-500">
+              </div>
+              <div>
+                <label id="label-weight" class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1.5">Weight (kg)</label>
+                <input type="number" id="calc-weight" step="0.5" value="72" required
+                  class="w-full bg-slate-950 border border-slate-800 focus:border-emerald-500 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:ring-1 focus:ring-emerald-500">
+              </div>
+            </div>
+
+            <!-- Activity Level -->
+            <div>
+              <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1.5">Daily Activity Level</label>
+              <select id="calc-activity" class="w-full bg-slate-950 border border-slate-800 focus:border-emerald-500 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:ring-1 focus:ring-emerald-500">
+                <option value="sedentary">Sedentary (Desk job, minimal movement)</option>
+                <option value="light">Lightly Active (Light exercise 1-3 days/week)</option>
+                <option value="moderate" selected>Moderately Active (Workouts 3-5 days/week)</option>
+                <option value="active">Very Active (Hard training 6-7 days/week)</option>
+                <option value="extra_active">Extra Active (Physical labor / 2x training/day)</option>
+              </select>
+            </div>
+
+            <!-- Goal -->
+            <div>
+              <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1.5">Primary Fitness Goal</label>
+              <select id="calc-goal" class="w-full bg-slate-950 border border-slate-800 focus:border-emerald-500 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:ring-1 focus:ring-emerald-500">
+                <option value="weight_loss" selected>Fat Loss (-500 kcal / sustainable)</option>
+                <option value="extreme_loss">Accelerated Fat Loss (-750 kcal)</option>
+                <option value="maintenance">Maintenance / Body Recomposition</option>
+                <option value="muscle_gain">Lean Muscle Gain (+350 kcal)</option>
+                <option value="endurance">Endurance & Athletic Performance</option>
+              </select>
+            </div>
+
+            <!-- Dietary Style -->
+            <div>
+              <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1.5">Nutrition Style</label>
+              <select id="calc-diet" class="w-full bg-slate-950 border border-slate-800 focus:border-emerald-500 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:ring-1 focus:ring-emerald-500">
+                <option value="omnivore" selected>Standard Omnivore</option>
+                <option value="high_protein">High Protein Bodybuilding</option>
+                <option value="vegetarian">Vegetarian</option>
+                <option value="vegan">Vegan / Plant-Based</option>
+                <option value="keto">Ketogenic (Low Carb / High Fat)</option>
+              </select>
+            </div>
+
+            <!-- Submit Button -->
+            <button type="submit" id="btn-calc-submit"
+              class="w-full mt-4 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold py-3 px-4 rounded-xl transition duration-150 flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/25">
+              <i data-lucide="zap" class="w-5 h-5 fill-current"></i>
+              <span>Calculate Metrics & Macros</span>
+            </button>
+          </form>
+        </div>
+
+        <!-- Results Dashboard (7 cols) -->
+        <div class="lg:col-span-7 space-y-6">
+          
+          <!-- Key Metrics Grid -->
+          <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+            
+            <!-- BMI Card -->
+            <div class="bg-slate-900/90 rounded-2xl p-5 border border-slate-800 shadow-md">
+              <div class="flex items-center justify-between text-slate-400 text-xs font-semibold uppercase tracking-wider">
+                <span>Body Mass Index</span>
+                <i data-lucide="activity" class="w-4 h-4 text-emerald-400"></i>
+              </div>
+              <div class="mt-3 flex items-baseline gap-2">
+                <span id="res-bmi" class="text-3xl font-extrabold text-white">23.5</span>
+                <span id="res-bmi-badge" class="text-xs px-2 py-0.5 rounded-full font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">Normal</span>
+              </div>
+              <p id="res-bmi-healthy" class="text-xs text-slate-500 mt-2">Healthy: 56.7 - 76.3 kg</p>
+            </div>
+
+            <!-- BMR Card -->
+            <div class="bg-slate-900/90 rounded-2xl p-5 border border-slate-800 shadow-md">
+              <div class="flex items-center justify-between text-slate-400 text-xs font-semibold uppercase tracking-wider">
+                <span>Basal Metabolic Rate</span>
+                <i data-lucide="flame" class="w-4 h-4 text-amber-400"></i>
+              </div>
+              <div class="mt-3">
+                <span id="res-bmr" class="text-3xl font-extrabold text-white">1,698</span>
+                <span class="text-xs text-slate-400 ml-1">kcal/day</span>
+              </div>
+              <p class="text-xs text-slate-500 mt-2">Calories burned at complete rest</p>
+            </div>
+
+            <!-- TDEE Card -->
+            <div class="bg-slate-900/90 rounded-2xl p-5 border border-slate-800 shadow-md">
+              <div class="flex items-center justify-between text-slate-400 text-xs font-semibold uppercase tracking-wider">
+                <span>Maintenance (TDEE)</span>
+                <i data-lucide="gauge" class="w-4 h-4 text-cyan-400"></i>
+              </div>
+              <div class="mt-3">
+                <span id="res-tdee" class="text-3xl font-extrabold text-white">2,632</span>
+                <span class="text-xs text-slate-400 ml-1">kcal/day</span>
+              </div>
+              <p class="text-xs text-slate-500 mt-2">Energy needed to maintain weight</p>
+            </div>
+
+          </div>
+
+          <!-- Highlight Calorie Target Card -->
+          <div class="bg-gradient-to-r from-emerald-950/60 via-slate-900 to-slate-900 rounded-2xl p-6 border border-emerald-500/30 shadow-xl relative overflow-hidden">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div>
+                <span class="text-xs font-bold uppercase tracking-wider text-emerald-400 flex items-center gap-1.5">
+                  <i data-lucide="target" class="w-4 h-4"></i> Your Recommended Daily Intake
+                </span>
+                <div class="mt-2 flex items-baseline gap-2">
+                  <span id="res-target-calories" class="text-4xl md:text-5xl font-black text-white">2,132</span>
+                  <span class="text-sm font-semibold text-emerald-400">kcal / day</span>
+                </div>
+                <p id="res-calorie-notes" class="text-xs md:text-sm text-slate-400 mt-1">
+                  500 kcal deficit for safe, steady fat loss (~0.5 kg / 1 lb per week).
+                </p>
+              </div>
+
+              <!-- Quick Water Box -->
+              <div class="bg-slate-950/80 px-4 py-3 rounded-xl border border-slate-800 flex items-center gap-3">
+                <div class="w-10 h-10 rounded-lg bg-blue-500/10 flex items-center justify-center text-blue-400">
+                  <i data-lucide="droplet" class="w-5 h-5 fill-current"></i>
+                </div>
+                <div>
+                  <div class="text-xs text-slate-400">Daily Water Goal</div>
+                  <div class="text-lg font-bold text-white">
+                    <span id="res-water-liters">2.9</span> L 
+                    <span class="text-xs font-normal text-slate-400">(~<span id="res-water-glasses">12</span> glasses)</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Macronutrient Split & Interactive Chart -->
+          <div class="bg-slate-900/90 rounded-2xl p-6 border border-slate-800 shadow-xl">
+            <h3 class="font-bold text-white text-base mb-4 flex items-center justify-between">
+              <span class="flex items-center gap-2">
+                <i data-lucide="pie-chart" class="w-4 h-4 text-emerald-400"></i>
+                <span>Optimal Macronutrient Distribution</span>
+              </span>
+              <span class="text-xs font-normal text-slate-400">Calibrated for your goal</span>
+            </h3>
+
+            <div class="grid grid-cols-1 md:grid-cols-12 gap-6 items-center">
+              
+              <!-- Donut Chart Container -->
+              <div class="md:col-span-5 flex justify-center">
+                <div class="relative w-44 h-44">
+                  <canvas id="macroChart"></canvas>
+                  <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                    <span class="text-xs text-slate-400">Total</span>
+                    <span id="res-chart-calories" class="text-base font-extrabold text-white">2,132</span>
+                    <span class="text-[10px] text-slate-500">kcal</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Macro Metrics Cards -->
+              <div class="md:col-span-7 space-y-3">
+                
+                <!-- Protein -->
+                <div class="p-3 bg-slate-950/60 rounded-xl border border-slate-800 flex items-center justify-between">
+                  <div class="flex items-center gap-3">
+                    <div class="w-3 h-8 rounded-full bg-emerald-400"></div>
+                    <div>
+                      <div class="text-sm font-bold text-white">Protein</div>
+                      <div class="text-xs text-slate-400">Muscle repair & satiety</div>
+                    </div>
+                  </div>
+                  <div class="text-right">
+                    <div class="text-base font-extrabold text-emerald-400"><span id="res-protein-g">187</span>g</div>
+                    <div class="text-xs text-slate-500"><span id="res-protein-pct">35</span>% (<span id="res-protein-kcal">746</span> kcal)</div>
+                  </div>
+                </div>
+
+                <!-- Carbs -->
+                <div class="p-3 bg-slate-950/60 rounded-xl border border-slate-800 flex items-center justify-between">
+                  <div class="flex items-center gap-3">
+                    <div class="w-3 h-8 rounded-full bg-cyan-400"></div>
+                    <div>
+                      <div class="text-sm font-bold text-white">Carbohydrates</div>
+                      <div class="text-xs text-slate-400">Energy & glycogen replenishment</div>
+                    </div>
+                  </div>
+                  <div class="text-right">
+                    <div class="text-base font-extrabold text-cyan-400"><span id="res-carbs-g">213</span>g</div>
+                    <div class="text-xs text-slate-500"><span id="res-carbs-pct">40</span>% (<span id="res-carbs-kcal">853</span> kcal)</div>
+                  </div>
+                </div>
+
+                <!-- Fats -->
+                <div class="p-3 bg-slate-950/60 rounded-xl border border-slate-800 flex items-center justify-between">
+                  <div class="flex items-center gap-3">
+                    <div class="w-3 h-8 rounded-full bg-amber-400"></div>
+                    <div>
+                      <div class="text-sm font-bold text-white">Healthy Fats</div>
+                      <div class="text-xs text-slate-400">Hormone synthesis & joint health</div>
+                    </div>
+                  </div>
+                  <div class="text-right">
+                    <div class="text-base font-extrabold text-amber-400"><span id="res-fat-g">59</span>g</div>
+                    <div class="text-xs text-slate-500"><span id="res-fat-pct">25</span>% (<span id="res-fat-kcal">533</span> kcal)</div>
+                  </div>
+                </div>
+
+              </div>
+
+            </div>
+
+            <!-- Transfer to Plan Generator CTA -->
+            <div class="mt-6 pt-4 border-t border-slate-800/80 flex flex-col sm:flex-row items-center justify-between gap-3">
+              <span class="text-xs text-slate-400">Ready to put these numbers into action?</span>
+              <button onclick="sendStatsToPlanner()" class="w-full sm:w-auto px-4 py-2 rounded-xl text-xs font-bold bg-slate-800 hover:bg-slate-700 text-emerald-400 border border-slate-700 hover:border-emerald-500/50 transition flex items-center justify-center gap-2">
+                <span>Generate 7-Day Plan with these Macros</span>
+                <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i>
+              </button>
+            </div>
+
+          </div>
+
+        </div>
+
+      </div>
+
+    </section>
+
+
+    <!-- ======================================================== -->
+    <!-- TAB 2: AI WORKOUT & MEAL PLANNER                         -->
+    <!-- ======================================================== -->
+    <section id="section-planner" class="space-y-8 hidden">
+      
+      <!-- Intro Banner -->
+      <div class="relative overflow-hidden rounded-2xl bg-gradient-to-br from-slate-900 via-slate-900 to-slate-800/90 p-6 md:p-8 border border-slate-800">
+        <div class="max-w-2xl">
+          <span class="px-3 py-1 rounded-full text-xs font-semibold bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 uppercase tracking-wider">
+            AI Customized Fitness & Nutrition Architecture
+          </span>
+          <h2 class="text-2xl md:text-3xl font-extrabold text-white mt-3 tracking-tight">
+            Personalized 7-Day Training & Meal Schedule
+          </h2>
+          <p class="text-slate-400 text-sm md:text-base mt-2">
+            Configure your training frequency, available equipment, and dietary rules. FitBuddy will draft a complete, progressive 7-day schedule with exercise notes and targeted meal suggestions.
+          </p>
+        </div>
+      </div>
+
+      <!-- Generator Settings Box -->
+      <div class="bg-slate-900/90 rounded-2xl p-6 border border-slate-800 shadow-xl">
+        <form id="plan-form" onsubmit="handleGeneratePlan(event)" class="space-y-4">
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            
+            <!-- Experience Level -->
+            <div>
+              <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1.5">Fitness Level</label>
+              <select id="plan-level" class="w-full bg-slate-950 border border-slate-800 focus:border-cyan-500 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none">
+                <option value="beginner">Beginner (0 - 6 months)</option>
+                <option value="intermediate" selected>Intermediate (6m - 2 years)</option>
+                <option value="advanced">Advanced (2+ years dedicated)</option>
+              </select>
+            </div>
+
+            <!-- Equipment -->
+            <div>
+              <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1.5">Equipment Access</label>
+              <select id="plan-equipment" class="w-full bg-slate-950 border border-slate-800 focus:border-cyan-500 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none">
+                <option value="full_gym" selected>Full Commercial Gym</option>
+                <option value="dumbbells_bands">Home: Dumbbells & Bands</option>
+                <option value="bodyweight_only">Bodyweight / Calisthenics</option>
+              </select>
+            </div>
+
+            <!-- Days per week -->
+            <div>
+              <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1.5">Weekly Frequency</label>
+              <select id="plan-days" class="w-full bg-slate-950 border border-slate-800 focus:border-cyan-500 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none">
+                <option value="3">3 Days (Full Body)</option>
+                <option value="4" selected>4 Days (Upper / Lower)</option>
+                <option value="5">5 Days (Push / Pull / Legs + Upper)</option>
+                <option value="6">6 Days (PPL x 2 Split)</option>
+              </select>
+            </div>
+
+            <!-- Dietary Style -->
+            <div>
+              <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1.5">Dietary Preference</label>
+              <select id="plan-diet" class="w-full bg-slate-950 border border-slate-800 focus:border-cyan-500 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none">
+                <option value="omnivore" selected>Standard Omnivore</option>
+                <option value="high_protein">High-Protein Fitness</option>
+                <option value="vegetarian">Vegetarian</option>
+                <option value="vegan">Vegan</option>
+                <option value="keto">Keto</option>
+              </select>
+            </div>
+
+          </div>
+
+          <!-- Target Calories & Restrictions -->
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2">
+            <div>
+              <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1.5">Target Daily Calories</label>
+              <input type="number" id="plan-calories" value="2150" step="50"
+                class="w-full bg-slate-950 border border-slate-800 focus:border-cyan-500 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none">
+            </div>
+            <div class="sm:col-span-2">
+              <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1.5">Injuries, Limitations, or Joint Sensitivities</label>
+              <input type="text" id="plan-injuries" placeholder="e.g. Mild lower back sensitivity, avoid behind-the-neck press"
+                class="w-full bg-slate-950 border border-slate-800 focus:border-cyan-500 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none placeholder:text-slate-600">
+            </div>
+          </div>
+
+          <button type="submit" id="btn-generate-plan"
+            class="w-full mt-3 bg-gradient-to-r from-cyan-500 to-teal-500 hover:from-cyan-400 hover:to-teal-400 text-slate-950 font-bold py-3.5 px-6 rounded-xl transition duration-150 flex items-center justify-center gap-2 shadow-lg shadow-cyan-500/20">
+            <i data-lucide="sparkles" class="w-5 h-5 fill-current"></i>
+            <span>Generate Customized 7-Day Plan</span>
+          </button>
+        </form>
+      </div>
+
+      <!-- Plan Results Area -->
+      <div id="plan-loading" class="hidden text-center py-16">
+        <div class="inline-block w-12 h-12 border-4 border-cyan-500/20 border-t-cyan-400 rounded-full animate-spin"></div>
+        <p class="text-slate-300 font-semibold mt-4 text-sm">Synthesizing biomechanical balance & nutrition targets...</p>
+        <p class="text-slate-500 text-xs mt-1">Crafting tailored exercise selections, volume loads, and macro recipes</p>
+      </div>
+
+      <!-- Printable & Displayable Plan -->
+      <div id="plan-output" class="space-y-6">
+        <!-- Initial placeholder card before generating -->
+        <div id="plan-empty-state" class="bg-slate-900/50 rounded-2xl p-10 border border-dashed border-slate-800 text-center">
+          <div class="w-16 h-16 rounded-2xl bg-cyan-500/10 flex items-center justify-center text-cyan-400 mx-auto mb-4">
+            <i data-lucide="dumbbell" class="w-8 h-8"></i>
+          </div>
+          <h3 class="text-lg font-bold text-white">No Active Plan Generated Yet</h3>
+          <p class="text-slate-400 text-sm max-w-md mx-auto mt-1 mb-6">
+            Click the "Generate Customized 7-Day Plan" button above to generate a complete training routine and meal plan tailored to your body.
+          </p>
+          <button onclick="handleGeneratePlan(new Event('submit'))" class="px-5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-cyan-400 font-semibold text-sm border border-slate-700 inline-flex items-center gap-2">
+            <i data-lucide="play" class="w-4 h-4 fill-current"></i>
+            <span>Generate Sample 7-Day Plan</span>
+          </button>
+        </div>
+
+        <div id="plan-content" class="hidden space-y-6">
+          
+          <!-- Plan Header & Action Bar -->
+          <div class="bg-slate-900 rounded-2xl p-6 border border-slate-800 flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div>
+              <div class="flex items-center gap-2">
+                <span id="plan-badge-source" class="text-xs px-2.5 py-0.5 rounded-full font-bold bg-cyan-500/10 text-cyan-400 border border-cyan-500/30">AI Plan</span>
+                <span id="plan-badge-level" class="text-xs px-2 py-0.5 rounded-full font-medium bg-slate-800 text-slate-300">Intermediate</span>
+              </div>
+              <h3 id="plan-title-routine" class="text-xl md:text-2xl font-black text-white mt-2">Upper / Lower 4-Day Strength Routine</h3>
+              <p id="plan-meta-details" class="text-xs text-slate-400 mt-1">Caloric Target: 2,150 kcal • Equipment: Full Gym</p>
+            </div>
+
+            <!-- Print / Export Action -->
+            <button onclick="window.print()" class="px-4 py-2 rounded-xl text-xs font-bold bg-slate-800 hover:bg-slate-700 text-white border border-slate-700 transition flex items-center justify-center gap-2 self-start md:self-auto">
+              <i data-lucide="printer" class="w-4 h-4"></i>
+              <span>Print / Save as PDF</span>
+            </button>
+          </div>
+
+          <div id="printable-plan" class="space-y-6">
+            <!-- 7-Day Workout Routine Schedule Grid -->
+            <div>
+              <h4 class="text-lg font-bold text-white mb-4 flex items-center gap-2">
+                <i data-lucide="calendar" class="w-5 h-5 text-cyan-400"></i>
+                <span>7-Day Training Routine</span>
+              </h4>
+              
+              <div id="plan-days-container" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <!-- Dynamically populated via JavaScript -->
+              </div>
+            </div>
+
+            <!-- Nutrition & Daily Meal Breakdown -->
+            <div class="bg-slate-900 rounded-2xl p-6 border border-slate-800">
+              <h4 class="text-lg font-bold text-white mb-4 flex items-center gap-2">
+                <i data-lucide="utensils" class="w-5 h-5 text-emerald-400"></i>
+                <span>Target Daily Nutrition Structure</span>
+              </h4>
+              
+              <p id="nutrition-overview" class="text-xs md:text-sm text-slate-400 mb-6 pb-4 border-b border-slate-800">
+                Balanced daily meal structure calibrated to meet your energy demands and preserve lean mass.
+              </p>
+
+              <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                
+                <!-- Breakfast -->
+                <div class="bg-slate-950/70 p-4 rounded-xl border border-slate-800">
+                  <div class="text-xs font-bold uppercase tracking-wider text-amber-400 flex items-center gap-1.5 mb-2">
+                    <i data-lucide="sunrise" class="w-4 h-4"></i> Breakfast
+                  </div>
+                  <p id="meal-breakfast" class="text-xs text-slate-300 leading-relaxed">Loading breakfast suggestion...</p>
+                </div>
+
+                <!-- Lunch -->
+                <div class="bg-slate-950/70 p-4 rounded-xl border border-slate-800">
+                  <div class="text-xs font-bold uppercase tracking-wider text-emerald-400 flex items-center gap-1.5 mb-2">
+                    <i data-lucide="sun" class="w-4 h-4"></i> Lunch
+                  </div>
+                  <p id="meal-lunch" class="text-xs text-slate-300 leading-relaxed">Loading lunch suggestion...</p>
+                </div>
+
+                <!-- Dinner -->
+                <div class="bg-slate-950/70 p-4 rounded-xl border border-slate-800">
+                  <div class="text-xs font-bold uppercase tracking-wider text-cyan-400 flex items-center gap-1.5 mb-2">
+                    <i data-lucide="moon" class="w-4 h-4"></i> Dinner
+                  </div>
+                  <p id="meal-dinner" class="text-xs text-slate-300 leading-relaxed">Loading dinner suggestion...</p>
+                </div>
+
+                <!-- Snack -->
+                <div class="bg-slate-950/70 p-4 rounded-xl border border-slate-800">
+                  <div class="text-xs font-bold uppercase tracking-wider text-violet-400 flex items-center gap-1.5 mb-2">
+                    <i data-lucide="apple" class="w-4 h-4"></i> Snack / Fuel
+                  </div>
+                  <p id="meal-snack" class="text-xs text-slate-300 leading-relaxed">Loading snack suggestion...</p>
+                </div>
+
+              </div>
+            </div>
+
+            <!-- Coaching Tips -->
+            <div class="bg-slate-900 rounded-2xl p-6 border border-slate-800">
+              <h4 class="text-base font-bold text-white mb-3 flex items-center gap-2">
+                <i data-lucide="shield-check" class="w-5 h-5 text-emerald-400"></i>
+                <span>Coaching Rules for Success</span>
+              </h4>
+              <ul id="plan-coaching-tips" class="space-y-2 text-xs md:text-sm text-slate-300">
+                <!-- Dynamically populated -->
+              </ul>
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+
+    </section>
+
+
+    <!-- ======================================================== -->
+    <!-- TAB 3: FITBUDDY AI COACH CHAT                            -->
+    <!-- ======================================================== -->
+    <section id="section-coach" class="space-y-6 hidden">
+      
+      <!-- Chat Header -->
+      <div class="bg-slate-900/90 rounded-2xl p-6 border border-slate-800 shadow-xl flex items-center justify-between">
+        <div class="flex items-center gap-4">
+          <div class="w-12 h-12 rounded-2xl bg-gradient-to-tr from-violet-600 to-indigo-500 flex items-center justify-center text-white shadow-lg shadow-violet-500/20">
+            <i data-lucide="bot" class="w-6 h-6"></i>
+          </div>
+          <div>
+            <h3 class="text-lg font-bold text-white flex items-center gap-2">
+              <span>FitBuddy AI Personal Trainer</span>
+              <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+            </h3>
+            <p class="text-xs text-slate-400">Ask about exercise form, substitute movements, recovery, or diet tips</p>
+          </div>
+        </div>
+
+        <button onclick="clearChat()" class="text-xs text-slate-500 hover:text-slate-300 transition flex items-center gap-1">
+          <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i> Clear Chat
+        </button>
+      </div>
+
+      <!-- Quick Prompt Chips -->
+      <div class="flex items-center gap-2 overflow-x-auto pb-1 custom-scrollbar">
+        <span class="text-xs text-slate-500 font-semibold uppercase whitespace-nowrap">Suggested:</span>
+        <button onclick="sendQuickPrompt('How do I fix my barbell squat form to avoid knee pain?')" class="px-3 py-1 rounded-full text-xs bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 text-slate-300 whitespace-nowrap transition">
+          🏋️ Fix Squat Knee Pain
+        </button>
+        <button onclick="sendQuickPrompt('What are 3 quick high-protein post-workout snacks under 300 calories?')" class="px-3 py-1 rounded-full text-xs bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 text-slate-300 whitespace-nowrap transition">
+          🥑 Post-Workout Snacks
+        </button>
+        <button onclick="sendQuickPrompt('I have sore muscles today. Should I still work out or rest?')" class="px-3 py-1 rounded-full text-xs bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 text-slate-300 whitespace-nowrap transition">
+          🧘 Should I train with sore muscles?
+        </button>
+        <button onclick="sendQuickPrompt('Give me a 10-minute dynamic warmup routine before heavy lifting.')" class="px-3 py-1 rounded-full text-xs bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 text-slate-300 whitespace-nowrap transition">
+          🔥 10-Min Dynamic Warmup
+        </button>
+      </div>
+
+      <!-- Chat Dialogue Container -->
+      <div class="bg-slate-900/90 rounded-2xl border border-slate-800 shadow-xl flex flex-col h-[520px]">
+        
+        <!-- Messages Area -->
+        <div id="chat-messages" class="flex-1 p-5 overflow-y-auto space-y-4 custom-scrollbar">
+          
+          <!-- Bot Welcome Message -->
+          <div class="flex items-start gap-3">
+            <div class="w-8 h-8 rounded-lg bg-violet-600 flex items-center justify-center text-white shrink-0 mt-0.5">
+              <i data-lucide="bot" class="w-4 h-4"></i>
+            </div>
+            <div class="bg-slate-800/80 rounded-2xl rounded-tl-none p-4 max-w-2xl border border-slate-700/60 text-sm text-slate-200 space-y-2">
+              <p class="font-semibold text-white">Hey there! I'm your FitBuddy AI Coach. 💪</p>
+              <p>I'm here to help you achieve your physique and health goals with science-backed advice. How are you feeling today, and what can I assist you with?</p>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Input Box -->
+        <div class="p-4 border-t border-slate-800 bg-slate-950/60 rounded-b-2xl">
+          <form id="chat-form" onsubmit="handleSendChat(event)" class="flex items-center gap-3">
+            <input type="text" id="chat-input" placeholder="Ask FitBuddy anything (e.g. 'Can you suggest an alternative for bench press?')..."
+              class="flex-1 bg-slate-900 border border-slate-800 focus:border-violet-500 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:ring-1 focus:ring-violet-500 placeholder:text-slate-500">
+            <button type="submit" id="chat-send-btn"
+              class="bg-violet-600 hover:bg-violet-500 text-white font-semibold p-3 rounded-xl transition duration-150 flex items-center justify-center shadow-lg shadow-violet-600/20">
+              <i data-lucide="send" class="w-4 h-4"></i>
+            </button>
+          </form>
+        </div>
+
+      </div>
+
+    </section>
+
+
+    <!-- ======================================================== -->
+    <!-- TAB 4: DAILY HABIT & WATER TRACKER                       -->
+    <!-- ======================================================== -->
+    <section id="section-tracker" class="space-y-8 hidden">
+      
+      <!-- Tracker Banner -->
+      <div class="relative overflow-hidden rounded-2xl bg-gradient-to-br from-slate-900 via-slate-900 to-slate-800/90 p-6 md:p-8 border border-slate-800">
+        <div class="max-w-2xl">
+          <span class="px-3 py-1 rounded-full text-xs font-semibold bg-amber-500/10 text-amber-400 border border-amber-500/20 uppercase tracking-wider">
+            Consistency Tracker
+          </span>
+          <h2 class="text-2xl md:text-3xl font-extrabold text-white mt-3 tracking-tight">
+            Daily Habits & Hydration Log
+          </h2>
+          <p class="text-slate-400 text-sm md:text-base mt-2">
+            Consistency beats intensity. Check off your daily non-negotiables, track your hydration intake, and build lasting momentum.
+          </p>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        
+        <!-- Water Intake Tracker -->
+        <div class="bg-slate-900/90 rounded-2xl p-6 border border-slate-800 shadow-xl flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between">
+              <h3 class="font-bold text-white text-lg flex items-center gap-2">
+                <i data-lucide="droplet" class="w-5 h-5 text-blue-400 fill-blue-400"></i>
+                <span>Water Hydration Tracker</span>
+              </h3>
+              <span id="tracker-water-progress-text" class="text-xs font-semibold text-blue-400">0 / 8 glasses</span>
+            </div>
+            
+            <p class="text-xs text-slate-400 mt-1">Each tap records a standard 250ml glass of water.</p>
+
+            <!-- Big Counter Display -->
+            <div class="my-8 text-center">
+              <div class="text-5xl font-black text-white tracking-tight">
+                <span id="tracker-water-count">0</span>
+                <span class="text-lg font-medium text-slate-400">/ <span id="tracker-water-goal">10</span></span>
+              </div>
+              <div class="text-xs text-slate-400 mt-1">Glasses of water logged today</div>
+              
+              <!-- Visual Progress Bar -->
+              <div class="w-full bg-slate-950 h-3 rounded-full mt-4 overflow-hidden border border-slate-800">
+                <div id="tracker-water-bar" class="h-full bg-gradient-to-r from-blue-500 to-cyan-400 rounded-full transition-all duration-300" style="width: 0%;"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Controls -->
+          <div class="flex items-center gap-3">
+            <button onclick="changeWater(-1)" class="flex-1 py-3 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold rounded-xl transition border border-slate-700 flex items-center justify-center gap-1 text-sm">
+              <i data-lucide="minus" class="w-4 h-4"></i> 1 Glass
+            </button>
+            <button onclick="changeWater(1)" class="flex-2 w-2/3 py-3 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl transition flex items-center justify-center gap-2 text-sm shadow-lg shadow-blue-500/25">
+              <i data-lucide="plus" class="w-4 h-4"></i> Add Glass (+250ml)
+            </button>
+          </div>
+        </div>
+
+        <!-- Daily Habits Checklist -->
+        <div class="bg-slate-900/90 rounded-2xl p-6 border border-slate-800 shadow-xl">
+          <div class="flex items-center justify-between mb-4">
+            <h3 class="font-bold text-white text-lg flex items-center gap-2">
+              <i data-lucide="check-square" class="w-5 h-5 text-amber-400"></i>
+              <span>Today's Fitness Checklist</span>
+            </h3>
+            <button onclick="resetHabits()" class="text-xs text-slate-500 hover:text-slate-300 transition">Reset All</button>
+          </div>
+
+          <div class="space-y-3">
+            
+            <label class="flex items-center gap-3 p-3.5 bg-slate-950/70 hover:bg-slate-950 rounded-xl border border-slate-800 cursor-pointer transition">
+              <input type="checkbox" id="habit-workout" onchange="saveHabits()" class="w-5 h-5 rounded border-slate-700 text-emerald-500 focus:ring-emerald-500 bg-slate-900">
+              <div class="flex-1">
+                <div class="text-sm font-semibold text-white">Daily Workout Completed</div>
+                <div class="text-xs text-slate-400">Completed scheduled lifting, cardio, or active walk</div>
+              </div>
+            </label>
+
+            <label class="flex items-center gap-3 p-3.5 bg-slate-950/70 hover:bg-slate-950 rounded-xl border border-slate-800 cursor-pointer transition">
+              <input type="checkbox" id="habit-protein" onchange="saveHabits()" class="w-5 h-5 rounded border-slate-700 text-emerald-500 focus:ring-emerald-500 bg-slate-900">
+              <div class="flex-1">
+                <div class="text-sm font-semibold text-white">Protein Target Reached</div>
+                <div class="text-xs text-slate-400">Hit target grams of protein to preserve and build muscle</div>
+              </div>
+            </label>
+
+            <label class="flex items-center gap-3 p-3.5 bg-slate-950/70 hover:bg-slate-950 rounded-xl border border-slate-800 cursor-pointer transition">
+              <input type="checkbox" id="habit-steps" onchange="saveHabits()" class="w-5 h-5 rounded border-slate-700 text-emerald-500 focus:ring-emerald-500 bg-slate-900">
+              <div class="flex-1">
+                <div class="text-sm font-semibold text-white">8,000 - 10,000 Steps</div>
+                <div class="text-xs text-slate-400">Daily non-exercise physical activity (NEAT)</div>
+              </div>
+            </label>
+
+            <label class="flex items-center gap-3 p-3.5 bg-slate-950/70 hover:bg-slate-950 rounded-xl border border-slate-800 cursor-pointer transition">
+              <input type="checkbox" id="habit-sleep" onchange="saveHabits()" class="w-5 h-5 rounded border-slate-700 text-emerald-500 focus:ring-emerald-500 bg-slate-900">
+              <div class="flex-1">
+                <div class="text-sm font-semibold text-white">7+ Hours Quality Sleep</div>
+                <div class="text-xs text-slate-400">Restorative slow-wave sleep for neural and muscle recovery</div>
+              </div>
+            </label>
+
+          </div>
+
+          <div class="mt-6 p-4 rounded-xl bg-slate-950/50 border border-slate-800 text-xs text-slate-400 flex items-center gap-3">
+            <i data-lucide="info" class="w-4 h-4 text-emerald-400 shrink-0"></i>
+            <span>Habits and hydration are automatically saved in your browser so your streak persists!</span>
+          </div>
+
+        </div>
+
+      </div>
+
+    </section>
+
+  </main>
+
+  <!-- Footer -->
+  <footer class="border-t border-slate-800/80 bg-slate-900/40 py-6 mt-12">
+    <div class="max-w-7xl mx-auto px-4 text-center text-xs text-slate-500 flex flex-col sm:flex-row items-center justify-between gap-4">
+      <div class="flex items-center gap-2">
+        <i data-lucide="dumbbell" class="w-4 h-4 text-emerald-400"></i>
+        <span class="text-slate-400 font-semibold">FitBuddy AI Coach</span>
+        <span>• Personalized Health & Fitness Assistant</span>
+      </div>
+      <div>
+        Always consult a qualified healthcare professional before beginning any strenuous workout or nutrition regimen.
+      </div>
+    </div>
+  </footer>
+
+
+  <!-- ======================================================== -->
+  <!-- APPLICATION JAVASCRIPT LOGIC                             -->
+  <!-- ======================================================== -->
+  <script>
+    // Initialize Lucide Icons
+    lucide.createIcons();
+
+    let currentUnits = 'metric';
+    let macroChartInstance = null;
+    let cachedMetrics = null;
+
+    // Tab Navigation Switcher
+    function switchTab(tabName) {
+      const tabs = ['calculator', 'planner', 'coach', 'tracker'];
+      
+      tabs.forEach(t => {
+        const sec = document.getElementById(`section-${t}`);
+        const btn = document.getElementById(`tab-btn-${t}`);
+        const mobBtn = document.getElementById(`mob-tab-btn-${t}`);
+        
+        if (t === tabName) {
+          if (sec) sec.classList.remove('hidden');
+          if (btn) {
+            btn.className = 'nav-tab-btn flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-sm font-medium transition-all text-white bg-slate-700/80 shadow-sm';
+          }
+          if (mobBtn) {
+            mobBtn.className = 'flex-1 py-1 px-2 text-xs font-medium rounded-lg text-white bg-slate-800 flex items-center justify-center gap-1.5 whitespace-nowrap';
+          }
+        } else {
+          if (sec) sec.classList.add('hidden');
+          if (btn) {
+            btn.className = 'nav-tab-btn flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-sm font-medium transition-all text-slate-400 hover:text-slate-200 hover:bg-slate-800/60';
+          }
+          if (mobBtn) {
+            mobBtn.className = 'flex-1 py-1 px-2 text-xs font-medium rounded-lg text-slate-400 hover:bg-slate-800/50 flex items-center justify-center gap-1.5 whitespace-nowrap';
+          }
+        }
+      });
+
+      // Refresh icons in case dynamic items rendered
+      lucide.createIcons();
+    }
+
+    // Unit toggle (Metric vs Imperial)
+    function setUnits(unit) {
+      currentUnits = unit;
+      const metricBtn = document.getElementById('unit-metric');
+      const imperialBtn = document.getElementById('unit-imperial');
+      const heightLabel = document.getElementById('label-height');
+      const weightLabel = document.getElementById('label-weight');
+      const heightInput = document.getElementById('calc-height');
+      const weightInput = document.getElementById('calc-weight');
+
+      if (unit === 'metric') {
+        metricBtn.className = "px-2.5 py-1 rounded font-semibold transition bg-emerald-500 text-slate-950";
+        imperialBtn.className = "px-2.5 py-1 rounded font-semibold transition text-slate-400 hover:text-white";
+        heightLabel.innerText = "Height (cm)";
+        weightLabel.innerText = "Weight (kg)";
+        
+        // Convert existing imperial to metric if needed
+        if (heightInput.value > 100) {
+          // already cm
+        } else {
+          heightInput.value = Math.round(heightInput.value * 2.54);
+          weightInput.value = Math.round(weightInput.value * 0.453592);
+        }
+      } else {
+        imperialBtn.className = "px-2.5 py-1 rounded font-semibold transition bg-emerald-500 text-slate-950";
+        metricBtn.className = "px-2.5 py-1 rounded font-semibold transition text-slate-400 hover:text-white";
+        heightLabel.innerText = "Height (inches)";
+        weightLabel.innerText = "Weight (lbs)";
+        
+        // Convert to imperial
+        if (heightInput.value > 100) {
+          heightInput.value = Math.round(heightInput.value / 2.54);
+          weightInput.value = Math.round(weightInput.value / 0.453592);
+        }
+      }
+    }
+
+    // Chart.js Macro Donut Chart
+    function updateMacroChart(proteinG, carbsG, fatG) {
+      const ctx = document.getElementById('macroChart');
+      if (!ctx) return;
+
+      const data = {
+        labels: ['Protein', 'Carbohydrates', 'Fats'],
+        datasets: [{
+          data: [proteinG * 4, carbsG * 4, fatG * 9],
+          backgroundColor: ['#34d399', '#06b6d4', '#f59e0b'],
+          borderWidth: 0,
+          hoverOffset: 6
+        }]
+      };
+
+      if (macroChartInstance) {
+        macroChartInstance.data = data;
+        macroChartInstance.update();
+      } else {
+        macroChartInstance = new Chart(ctx, {
+          type: 'doughnut',
+          data: data,
+          options: {
+            cutout: '76%',
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: { display: false },
+              tooltip: {
+                callbacks: {
+                  label: function(context) {
+                    const label = context.label || '';
+                    const val = context.raw || 0;
+                    return ` ${label}: ${val} kcal`;
+                  }
+                }
+              }
+            }
+          }
+        });
+      }
+    }
+
+    // Handle Metric & Macro Calculation
+    async function handleCalculate(event) {
+      if (event) event.preventDefault();
+      
+      const submitBtn = document.getElementById('btn-calc-submit');
+      const originalText = submitBtn.innerHTML;
+      submitBtn.disabled = true;
+      submitBtn.innerHTML = `<span class="inline-block w-4 h-4 border-2 border-slate-950/20 border-t-slate-950 rounded-full animate-spin"></span> Calculating...`;
+
+      const payload = {
+        age: parseInt(document.getElementById('calc-age').value),
+        gender: document.getElementById('calc-gender').value,
+        height: parseFloat(document.getElementById('calc-height').value),
+        weight: parseFloat(document.getElementById('calc-weight').value),
+        activity: document.getElementById('calc-activity').value,
+        goal: document.getElementById('calc-goal').value,
+        dietary_pref: document.getElementById('calc-diet').value,
+        units: currentUnits
+      };
+
+      try {
+        const response = await fetch('/api/calculate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        const resData = await response.json();
+        if (resData.success) {
+          const d = resData.data;
+          cachedMetrics = d;
+
+          // Populate BMI
+          document.getElementById('res-bmi').innerText = d.bmi;
+          const bmiBadge = document.getElementById('res-bmi-badge');
+          bmiBadge.innerText = d.bmi_category;
+          document.getElementById('res-bmi-healthy').innerText = `Healthy range: ${d.healthy_weight_range}`;
+
+          // Populate BMR & TDEE
+          document.getElementById('res-bmr').innerText = d.bmr.toLocaleString();
+          document.getElementById('res-tdee').innerText = d.tdee.toLocaleString();
+
+          // Target Calories
+          document.getElementById('res-target-calories').innerText = d.target_calories.toLocaleString();
+          document.getElementById('res-chart-calories').innerText = d.target_calories.toLocaleString();
+          document.getElementById('res-calorie-notes').innerText = d.calorie_notes;
+
+          // Water
+          document.getElementById('res-water-liters').innerText = d.water.liters;
+          document.getElementById('res-water-glasses').innerText = d.water.glasses;
+          document.getElementById('tracker-water-goal').innerText = d.water.glasses;
+
+          // Macros
+          document.getElementById('res-protein-g').innerText = d.macros.protein.grams;
+          document.getElementById('res-protein-pct').innerText = d.macros.protein.percent;
+          document.getElementById('res-protein-kcal').innerText = d.macros.protein.calories;
+
+          document.getElementById('res-carbs-g').innerText = d.macros.carbs.grams;
+          document.getElementById('res-carbs-pct').innerText = d.macros.carbs.percent;
+          document.getElementById('res-carbs-kcal').innerText = d.macros.carbs.calories;
+
+          document.getElementById('res-fat-g').innerText = d.macros.fat.grams;
+          document.getElementById('res-fat-pct').innerText = d.macros.fat.percent;
+          document.getElementById('res-fat-kcal').innerText = d.macros.fat.calories;
+
+          // Update Chart
+          updateMacroChart(d.macros.protein.grams, d.macros.carbs.grams, d.macros.fat.grams);
+
+          // Update Habit Water Progress UI
+          updateWaterUI();
+        } else {
+          alert("Error: " + (resData.error || "Unable to compute metrics"));
+        }
+      } catch (err) {
+        console.error("Calculation fetch failed:", err);
+        alert("Failed to communicate with calculation service.");
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = originalText;
+        lucide.createIcons();
+      }
+    }
+
+    // Prefill Planner from Calculator
+    function sendStatsToPlanner() {
+      if (cachedMetrics) {
+        document.getElementById('plan-calories').value = cachedMetrics.target_calories;
+      }
+      const calcDiet = document.getElementById('calc-diet').value;
+      document.getElementById('plan-diet').value = calcDiet;
+      switchTab('planner');
+    }
+
+    // Handle AI Workout & Meal Plan Generation
+    async function handleGeneratePlan(event) {
+      if (event && event.preventDefault) event.preventDefault();
+
+      const btn = document.getElementById('btn-generate-plan');
+      const emptyState = document.getElementById('plan-empty-state');
+      const planOutput = document.getElementById('plan-content');
+      const loader = document.getElementById('plan-loading');
+
+      emptyState.classList.add('hidden');
+      planOutput.classList.add('hidden');
+      loader.classList.remove('hidden');
+
+      const payload = {
+        level: document.getElementById('plan-level').value,
+        equipment: document.getElementById('plan-equipment').value,
+        days_per_week: document.getElementById('plan-days').value,
+        dietary_pref: document.getElementById('plan-diet').value,
+        calories: parseInt(document.getElementById('plan-calories').value) || 2000,
+        injuries: document.getElementById('plan-injuries').value,
+        goal: document.getElementById('calc-goal') ? document.getElementById('calc-goal').value : 'general_fitness',
+        age: document.getElementById('calc-age') ? parseInt(document.getElementById('calc-age').value) : 26,
+        gender: document.getElementById('calc-gender') ? document.getElementById('calc-gender').value : 'male'
+      };
+
+      try {
+        const response = await fetch('/api/generate-plan', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        const resData = await response.json();
+        if (resData.success && resData.plan) {
+          renderPlan(resData.plan);
+        } else {
+          alert("Error generating plan: " + (resData.error || "Server issue"));
+          emptyState.classList.remove('hidden');
+        }
+      } catch (err) {
+        console.error("Plan generator failed:", err);
+        alert("Could not connect to plan generator.");
+        emptyState.classList.remove('hidden');
+      } finally {
+        loader.classList.add('hidden');
+        lucide.createIcons();
+      }
+    }
+
+    // Render Generated Plan to UI
+    function renderPlan(plan) {
+      document.getElementById('plan-content').classList.remove('hidden');
+
+      // Metadata Header
+      document.getElementById('plan-badge-source').innerText = plan.source || "FitBuddy AI";
+      document.getElementById('plan-badge-level').innerText = plan.fitness_level || "Intermediate";
+      document.getElementById('plan-title-routine').innerText = plan.routine_type || "Custom 7-Day Training Routine";
+      document.getElementById('plan-meta-details').innerText = 
+        `Caloric Target: ${plan.target_calories || '2,000 kcal'} • Equipment: ${plan.equipment || 'Gym'} • Diet: ${plan.dietary_preference || 'Balanced'}`;
+
+      // Schedule Days
+      const daysContainer = document.getElementById('plan-days-container');
+      daysContainer.innerHTML = '';
+
+      if (plan.schedule && plan.schedule.length > 0) {
+        plan.schedule.forEach((day, index) => {
+          const isRest = day.day.toLowerCase().includes('rest') || day.focus.toLowerCase().includes('recovery');
+          
+          let exercisesHTML = '';
+          if (day.exercises && day.exercises.length > 0) {
+            day.exercises.forEach(ex => {
+              exercisesHTML += `
+                <li class="p-2.5 rounded-lg bg-slate-950/70 border border-slate-800/80">
+                  <div class="flex items-center justify-between text-xs font-bold text-white">
+                    <span>${ex.name}</span>
+                    <span class="text-cyan-400 font-mono">${ex.sets_reps}</span>
+                  </div>
+                  <div class="flex items-center justify-between text-[11px] text-slate-400 mt-1">
+                    <span>Rest: ${ex.rest}</span>
+                    <span class="italic text-slate-500 max-w-[200px] truncate" title="${ex.notes}">${ex.notes}</span>
+                  </div>
+                </li>
+              `;
+            });
+          }
+
+          const dayCard = document.createElement('div');
+          dayCard.className = `p-4 rounded-xl border ${isRest ? 'bg-slate-900/60 border-slate-800/80' : 'bg-slate-900 border-slate-800'} space-y-3`;
+          dayCard.innerHTML = `
+            <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+              <div>
+                <h5 class="font-bold text-white text-sm">${day.day}</h5>
+                <p class="text-xs text-slate-400">${day.focus}</p>
+              </div>
+              <span class="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded ${isRest ? 'bg-slate-800 text-slate-400' : 'bg-cyan-500/10 text-cyan-400 border border-cyan-500/20'}">
+                ${isRest ? 'Recovery' : 'Workout'}
+              </span>
+            </div>
+            <ul class="space-y-2">
+              ${exercisesHTML}
+            </ul>
+          `;
+          daysContainer.appendChild(dayCard);
+        });
+      }
+
+      // Nutrition Breakdown
+      if (plan.nutrition_plan) {
+        const np = plan.nutrition_plan;
+        document.getElementById('nutrition-overview').innerText = np.overview || "Daily meal framework tailored to fuel workouts and recovery.";
+        document.getElementById('meal-breakfast').innerText = np.breakfast || "Nutrient-dense breakfast";
+        document.getElementById('meal-lunch').innerText = np.lunch || "Lean protein and complex carbs lunch";
+        document.getElementById('meal-dinner').innerText = np.dinner || "Clean protein, healthy fats, and vegetable dinner";
+        document.getElementById('meal-snack').innerText = np.snack || "High-protein snack";
+      }
+
+      // Coaching Tips
+      const tipsList = document.getElementById('plan-coaching-tips');
+      tipsList.innerHTML = '';
+      const tips = plan.coaching_tips || [
+        "Focus on progressive overload by tracking weights.",
+        "Prioritize 8 hours of sleep for muscular restoration.",
+        "Maintain adequate electrolyte and hydration levels."
+      ];
+      tips.forEach(t => {
+        const li = document.createElement('li');
+        li.className = "flex items-start gap-2";
+        li.innerHTML = `<i data-lucide="check" class="w-4 h-4 text-emerald-400 shrink-0 mt-0.5"></i><span>${t}</span>`;
+        tipsList.appendChild(li);
+      });
+
+      lucide.createIcons();
+    }
+
+    // FitBuddy AI Chat
+    async function handleSendChat(event) {
+      if (event) event.preventDefault();
+      const input = document.getElementById('chat-input');
+      const message = input.value.trim();
+      if (!message) return;
+
+      appendChatMessage('user', message);
+      input.value = '';
+
+      // Append typing indicator
+      const loaderId = 'chat-typing-loader';
+      appendChatLoader(loaderId);
+
+      try {
+        const response = await fetch('/api/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message: message })
+        });
+
+        const resData = await response.json();
+        removeChatLoader(loaderId);
+
+        if (resData.success) {
+          appendChatMessage('bot', resData.reply);
+        } else {
+          appendChatMessage('bot', "Coach: " + (resData.error || "I encountered a minor glitch. Please try again!"));
+        }
+      } catch (err) {
+        removeChatLoader(loaderId);
+        appendChatMessage('bot', "FitBuddy Coach is temporarily unable to reach the server. Please check your connection.");
+      }
+    }
+
+    function sendQuickPrompt(promptText) {
+      document.getElementById('chat-input').value = promptText;
+      handleSendChat();
+    }
+
+    function appendChatMessage(sender, text) {
+      const container = document.getElementById('chat-messages');
+      const isUser = sender === 'user';
+
+      const msgDiv = document.createElement('div');
+      msgDiv.className = `flex items-start gap-3 ${isUser ? 'flex-row-reverse' : ''}`;
+
+      const avatar = isUser 
+        ? `<div class="w-8 h-8 rounded-lg bg-emerald-500 flex items-center justify-center text-slate-950 font-bold shrink-0 mt-0.5 text-xs"><i data-lucide="user" class="w-4 h-4"></i></div>`
+        : `<div class="w-8 h-8 rounded-lg bg-violet-600 flex items-center justify-center text-white shrink-0 mt-0.5"><i data-lucide="bot" class="w-4 h-4"></i></div>`;
+
+      // Simple formatting for bold markdown
+      const formattedText = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\n/g, '<br/>');
+
+      msgDiv.innerHTML = `
+        ${avatar}
+        <div class="${isUser ? 'bg-emerald-600 text-white rounded-tr-none' : 'bg-slate-800/90 text-slate-200 rounded-tl-none border border-slate-700/60'} rounded-2xl p-4 max-w-2xl text-sm leading-relaxed">
+          ${formattedText}
+        </div>
+      `;
+
+      container.appendChild(msgDiv);
+      container.scrollTop = container.scrollHeight;
+      lucide.createIcons();
+    }
+
+    function appendChatLoader(loaderId) {
+      const container = document.getElementById('chat-messages');
+      const loaderDiv = document.createElement('div');
+      loaderDiv.id = loaderId;
+      loaderDiv.className = 'flex items-start gap-3';
+      loaderDiv.innerHTML = `
+        <div class="w-8 h-8 rounded-lg bg-violet-600 flex items-center justify-center text-white shrink-0 mt-0.5">
+          <i data-lucide="bot" class="w-4 h-4"></i>
+        </div>
+        <div class="bg-slate-800 rounded-2xl rounded-tl-none p-4 max-w-xs border border-slate-700 flex items-center gap-1.5">
+          <span class="w-2 h-2 rounded-full bg-violet-400 animate-bounce"></span>
+          <span class="w-2 h-2 rounded-full bg-violet-400 animate-bounce [animation-delay:0.2s]"></span>
+          <span class="w-2 h-2 rounded-full bg-violet-400 animate-bounce [animation-delay:0.4s]"></span>
+        </div>
+      `;
+      container.appendChild(loaderDiv);
+      container.scrollTop = container.scrollHeight;
+      lucide.createIcons();
+    }
+
+    function removeChatLoader(loaderId) {
+      const loader = document.getElementById(loaderId);
+      if (loader) loader.remove();
+    }
+
+    function clearChat() {
+      const container = document.getElementById('chat-messages');
+      container.innerHTML = `
+        <div class="flex items-start gap-3">
+          <div class="w-8 h-8 rounded-lg bg-violet-600 flex items-center justify-center text-white shrink-0 mt-0.5">
+            <i data-lucide="bot" class="w-4 h-4"></i>
+          </div>
+          <div class="bg-slate-800/80 rounded-2xl rounded-tl-none p-4 max-w-2xl border border-slate-700/60 text-sm text-slate-200 space-y-2">
+            <p class="font-semibold text-white">Chat cleared. Ready for your next fitness query!</p>
+          </div>
+        </div>
+      `;
+      lucide.createIcons();
+    }
+
+    // ==========================================
+    // DAILY HABITS & WATER TRACKER STORAGE
+    // ==========================================
+    let waterGlassesLogged = parseInt(localStorage.getItem('fitbuddy_water') || '0');
+
+    function changeWater(delta) {
+      waterGlassesLogged = Math.max(0, waterGlassesLogged + delta);
+      localStorage.setItem('fitbuddy_water', waterGlassesLogged);
+      updateWaterUI();
+    }
+
+    function updateWaterUI() {
+      const countEl = document.getElementById('tracker-water-count');
+      const barEl = document.getElementById('tracker-water-bar');
+      const progText = document.getElementById('tracker-water-progress-text');
+      const goal = parseInt(document.getElementById('tracker-water-goal').innerText) || 10;
+
+      if (countEl) countEl.innerText = waterGlassesLogged;
+      const pct = Math.min(100, Math.round((waterGlassesLogged / goal) * 100));
+      if (barEl) barEl.style.width = `${pct}%`;
+      if (progText) progText.innerText = `${waterGlassesLogged} / ${goal} glasses (${pct}%)`;
+    }
+
+    function saveHabits() {
+      const habits = {
+        workout: document.getElementById('habit-workout').checked,
+        protein: document.getElementById('habit-protein').checked,
+        steps: document.getElementById('habit-steps').checked,
+        sleep: document.getElementById('habit-sleep').checked
+      };
+      localStorage.setItem('fitbuddy_habits', JSON.stringify(habits));
+    }
+
+    function loadHabits() {
+      try {
+        const saved = JSON.parse(localStorage.getItem('fitbuddy_habits') || '{}');
+        if (saved.workout) document.getElementById('habit-workout').checked = true;
+        if (saved.protein) document.getElementById('habit-protein').checked = true;
+        if (saved.steps) document.getElementById('habit-steps').checked = true;
+        if (saved.sleep) document.getElementById('habit-sleep').checked = true;
+      } catch (e) {
+        console.error("Error loading habits from localStorage", e);
+      }
+      updateWaterUI();
+    }
+
+    function resetHabits() {
+      if (confirm("Reset today's habit checklist?")) {
+        document.getElementById('habit-workout').checked = false;
+        document.getElementById('habit-protein').checked = false;
+        document.getElementById('habit-steps').checked = false;
+        document.getElementById('habit-sleep').checked = false;
+        saveHabits();
+      }
+    }
+
+    // Auto-run baseline calculation on initial load
+    window.addEventListener('DOMContentLoaded', () => {
+      loadHabits();
+      handleCalculate();
+    });
+  </script>
+</body>
+</html>
